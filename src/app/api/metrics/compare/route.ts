@@ -5,7 +5,6 @@ import { toDateStr } from "@/lib/dateUtils";
 import { calculateCurrentStreak } from "@/lib/streak";
 import { normalizeGitHubUsername } from "@/lib/validate-github-username";
 import { supabaseAdmin } from "@/lib/supabase";
-
 export const dynamic = "force-dynamic";
 
 const GITHUB_API = "https://api.github.com";

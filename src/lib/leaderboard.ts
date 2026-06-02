@@ -166,7 +166,6 @@ async function fetchGitHubJson<T>(path: string): Promise<T | null> {
   }
 }
 
-
 async function fetchCommitStats(username: string, since: string) {
   const query = new URLSearchParams({
     q: `author:${username} author-date:>=${since}`,
