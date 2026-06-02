@@ -8,6 +8,34 @@ export interface StreakResult {
   freezeDates: string[];
 }
 
+function todayAndYesterday(timeZone: string): { today: string; yesterday: string } {
+  if (timeZone === "UTC") {
+    const today = toDateStr(new Date());
+    const yesterday = toDateStr(new Date(Date.now() - 86400000));
+    return { today, yesterday };
+  }
+
+  const fmt = new Intl.DateTimeFormat("en", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = (d: Date) => {
+    const p = fmt.formatToParts(d);
+    const y = p.find((x) => x.type === "year")?.value ?? "0000";
+    const m = p.find((x) => x.type === "month")?.value ?? "00";
+    const day = p.find((x) => x.type === "day")?.value ?? "00";
+    return `${y}-${m}-${day}`;
+  };
+
+  return {
+    today: parts(new Date()),
+    yesterday: parts(new Date(Date.now() - 86400000)),
+  };
+}
+
 /**
  * Canonical streak calculation shared across all endpoints.
  * freeze dates count as active days so they don't break the streak.
@@ -17,7 +45,8 @@ export interface StreakResult {
  */
 export function calculateStreakFromDates(
   activeDates: Set<string>,
-  freezeDates: Set<string> = new Set()
+  freezeDates: Set<string> = new Set(),
+  timeZone = "UTC"
 ): StreakResult {
   const combinedDates = new Set<string>([
     ...Array.from(activeDates),
@@ -58,9 +87,7 @@ export function calculateStreakFromDates(
   // Push the final run.
   runs.push({ start: runStart, end: commitDays[commitDays.length - 1], length: currentRun });
 
-  const lastDay = commitDays[commitDays.length - 1];
-  const today = toDateStr(new Date());
-  const yesterday = toDateStr(new Date(Date.now() - 86400000));
+  const { today, yesterday } = todayAndYesterday(timeZone);
 
   // Current streak is alive if the last active day is today OR yesterday.
   const lastRun = runs[runs.length - 1];
@@ -70,7 +97,7 @@ export function calculateStreakFromDates(
   return {
     current: currentStreak,
     longest: longestStreak,
-    lastCommitDate: lastDay,
+    lastCommitDate: commitDays[commitDays.length - 1],
     totalActiveDays: commitDays.length,
     freezeDates: Array.from(freezeDates),
   };
@@ -83,4 +110,13 @@ export function calculateCurrentStreak(dates: Set<string> | string[]): number {
     ? new Set(dates.map((d) => d.slice(0, 10)))
     : dates;
   return calculateStreakFromDates(dateSet).current;
+}
+
+// Adapter for callers that pass Date objects and expect {currentStreak, longestStreak}.
+export function calculateStreak(
+  commitDates: Date[]
+): { currentStreak: number; longestStreak: number } {
+  const dateSet = new Set(commitDates.map((d) => toDateStr(d)));
+  const result = calculateStreakFromDates(dateSet);
+  return { currentStreak: result.current, longestStreak: result.longest };
 }
